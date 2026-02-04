@@ -1,0 +1,57 @@
+:root {
+    --bg-color: #0d1117;
+    --card-color: #161b22;
+    --text-main: #c9d1d9;
+    --accent: #58a6ff;
+    --error: #da3633;
+    --success: #238636;
+}
+
+body {
+    background-color: var(--bg-color);
+    color: var(--text-main);
+    font-family: 'Segoe UI', sans-serif;
+    margin: 0;
+    padding: 0;
+}
+
+header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 20px 40px;
+    background-color: var(--card-color);
+    border-bottom: 1px solid #30363d;
+}
+
+.logo { font-size: 1.5rem; font-weight: bold; color: var(--text-main); }
+
+.wallet-container { display: flex; align-items: center; gap: 15px; }
+
+.btn-primary {
+    background-color: var(--accent);
+    color: #fff;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-weight: 600;
+    transition: 0.2s;
+}
+
+.btn-primary:hover { opacity: 0.9; transform: translateY(-1px); }
+
+.badge {
+    padding: 5px 12px;
+    border-radius: 20px;
+    font-size: 0.85rem;
+    font-weight: bold;
+}
+.badge.success { background-color: rgba(35, 134, 54, 0.2); color: #3fb950; border: 1px solid #238636; }
+.badge.error { background-color: rgba(218, 54, 51, 0.2); color: #f85149; border: 1px solid #da3633; cursor: pointer; }
+
+.address { font-family: monospace; background: #21262d; padding: 5px 10px; border-radius: 6px; }
+.hidden { display: none !important; }
+
+main { padding: 40px; text-align: center; }
+.content-placeholder { margin-top: 50px; padding: 100px; border: 2px dashed #30363d; border-radius: 10px; color: #8b949e; }
