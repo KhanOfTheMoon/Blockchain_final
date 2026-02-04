@@ -1,53 +1,64 @@
 const connectBtn = document.getElementById("connect-btn");
 const addressSpan = document.getElementById("user-address");
-const networkBadge = document.getElementById("network-status");
+const networkBadge = document.getElementById("network-badge");
+const statusBadge = document.getElementById("status-badge");
 
-const NETWORKS = {
-    11155111: { name: "Sepolia", color: "success" },
-    17000:    { name: "Holesky", color: "success" },
-    31337:    { name: "Localhost", color: "warning" }
+const ALLOWED_NETWORKS = {
+    11155111: "Sepolia",
+    17000: "Holesky",
+    31337: "Localhost"
 };
+
+const SEPOLIA_CHAIN_ID = "0xaa36a7";
+
+let provider;
 
 connectBtn.onclick = async () => {
     if (!window.ethereum) {
-        alert("MetaMask is required!");
+        alert("MetaMask not found!");
         return;
     }
 
     try {
-        const provider = new ethers.BrowserProvider(window.ethereum);
+        await window.ethereum.request({ method: "eth_requestAccounts" });
         
-        const accounts = await provider.send("eth_requestAccounts", []);
-        const userAddress = accounts[0];
-
-        const network = await provider.getNetwork();
-        const chainId = Number(network.chainId);
-
-        handleLogin(userAddress, chainId);
+        provider = new ethers.BrowserProvider(window.ethereum);
+        
+        const signer = await provider.getSigner();
+        const address = await signer.getAddress();
+        
+        updateUI(address);
+        checkNetwork();
 
     } catch (error) {
         console.error(error);
-        alert("Connection failed: " + error.message);
+        setStatus("Connection Failed", "error");
     }
 };
 
-function handleLogin(address, chainId) {
+function updateUI(address) {
     connectBtn.classList.add("hidden");
     addressSpan.classList.remove("hidden");
-    
     addressSpan.textContent = `${address.slice(0, 6)}...${address.slice(-4)}`;
+}
 
-    const netBadge = document.getElementById("network-badge");
-    netBadge.classList.remove("hidden");
+async function checkNetwork() {
+    const network = await provider.getNetwork();
+    const chainId = Number(network.chainId);
+    
+    networkBadge.classList.remove("hidden");
+    statusBadge.classList.remove("hidden");
 
-    if (NETWORKS[chainId]) {
-        netBadge.textContent = `● ${NETWORKS[chainId].name}`;
-        netBadge.className = `badge ${NETWORKS[chainId].color}`;
+    if (ALLOWED_NETWORKS[chainId]) {
+        networkBadge.textContent = ALLOWED_NETWORKS[chainId];
+        networkBadge.className = "badge success";
+        setStatus("Network OK", "success");
     } else {
-        netBadge.textContent = "⚠ Wrong Network (Click to Switch)";
-        netBadge.className = "badge error";
+        networkBadge.textContent = "Wrong Network";
+        networkBadge.className = "badge error";
+        setStatus("Switch Network", "warning");
         
-        netBadge.onclick = async () => switchNetwork();
+        networkBadge.onclick = async () => switchNetwork();
     }
 }
 
@@ -55,15 +66,20 @@ async function switchNetwork() {
     try {
         await window.ethereum.request({
             method: "wallet_switchEthereumChain",
-            params: [{ chainId: "0xaa36a7" }],
+            params: [{ chainId: SEPOLIA_CHAIN_ID }], 
         });
-        window.location.reload();
-    } catch (error) {
-        alert("Please switch network manually in MetaMask");
+    } catch (e) {
+        console.error("Switch rejected", e);
     }
 }
 
+function setStatus(msg, type) {
+    statusBadge.textContent = msg;
+    statusBadge.className = `badge ${type}`;
+    statusBadge.classList.remove("hidden");
+}
+
 if (window.ethereum) {
-    window.ethereum.on('accountsChanged', () => window.location.reload());
-    window.ethereum.on('chainChanged', () => window.location.reload());
+    window.ethereum.on("chainChanged", () => window.location.reload());
+    window.ethereum.on("accountsChanged", () => window.location.reload());
 }
