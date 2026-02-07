@@ -3,15 +3,6 @@ pragma solidity ^0.8.20;
 
 import "./RewardToken.sol";
 
-
-RewardToken public rewardToken;
-
-constructor(address rewardTokenAddress) {
-    rewardToken = RewardToken(rewardTokenAddress);
-}
-
-
-
 contract Crowdfunding {
     struct Campaign {
         string title;
@@ -41,6 +32,12 @@ contract Crowdfunding {
         uint256 amountWei
     );
     event Finalized(uint256 indexed id);
+
+    RewardToken public rewardToken;
+
+    constructor(address rewardTokenAddress) {
+        rewardToken = RewardToken(rewardTokenAddress);
+    }
 
     function createCampaign(
         string calldata title,
@@ -98,22 +95,22 @@ contract Crowdfunding {
     }
 
     //Added function to contribute to a campaign
-    function contribute(uint256 id) external payable {
-        require(id > 0 && id <= campaignCount, "Bad id");
-        require(msg.value > 0, "Zero contribution");
+function contribute(uint256 id) external payable {
+    require(id > 0 && id <= campaignCount, "Bad id");
+    require(msg.value > 0, "Zero contribution");
 
-        Campaign storage c = campaigns[id];
+    Campaign storage c = campaigns[id];
 
-        require(block.timestamp < c.deadline, "Campaign ended");
-        require(!c.finalized, "Already finalized");
+    require(block.timestamp < c.deadline, "Campaign ended");
+    require(!c.finalized, "Already finalized");
 
-        contributions[id][msg.sender] += msg.value;
-        c.raisedWei += msg.value;
+    contributions[id][msg.sender] += msg.value;
+    c.raisedWei += msg.value;
 
-        rewardToken.mint(msg.sender, msg.value);
+    rewardToken.mint(msg.sender, msg.value);
 
-        emit Contributed(id, msg.sender, msg.value);
-    }
+    emit Contributed(id, msg.sender, msg.value);
+}
 
 
     //Added function to finalize a campaign
