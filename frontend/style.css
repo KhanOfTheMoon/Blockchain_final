@@ -56,3 +56,52 @@ main { padding: 40px; }
 .camp-details p { margin: 5px 0; font-size: 0.9rem; color: #c9d1d9; }
 .camp-actions { margin-top: 20px; }
 .btn-finalize { width: 100%; background-color: #d29922; color: black; }
+
+.create-container {
+    background-color: var(--card-color);
+    padding: 25px;
+    border-radius: 12px;
+    border: 1px solid #30363d;
+    max-width: 800px;
+    margin: 0 auto 40px auto;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+.create-container h2 {
+    margin-top: 0;
+    margin-bottom: 20px;
+    font-size: 1.2rem;
+    color: var(--text-main);
+    border-bottom: 1px solid #30363d;
+    padding-bottom: 10px;
+}
+
+.form-row {
+    display: flex;
+    gap: 15px;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+.form-row input {
+    background-color: #0d1117;
+    border: 1px solid #30363d;
+    color: var(--text-main);
+    padding: 10px 15px;
+    border-radius: 6px;
+    font-size: 0.95rem;
+    flex: 1;
+    transition: border-color 0.2s;
+    outline: none;
+}
+
+.form-row input:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 2px rgba(88, 166, 255, 0.2);
+}
+
+#btnCreate {
+    white-space: nowrap;
+    height: 40px;
+    padding: 0 25px;
+}

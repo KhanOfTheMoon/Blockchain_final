@@ -1,6 +1,8 @@
 // CONFIGURATION
-const CROWDFUNDING_ADDRESS = "0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512";
 const TOKEN_ADDRESS = "0x5FbDB2315678afecb367f032d93F642f64180aa3";
+const CROWDFUNDING_ADDRESS = "0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512";
+
+const EXPECTED_CHAIN_ID = 11155111; // Sepolia Testnet
 
 const CROWDFUNDING_ABI = [
   "function campaignCount() view returns (uint256)",
@@ -32,6 +34,11 @@ const btnRefresh = document.getElementById("btnRefresh");
 const btnLoad = document.getElementById("btnLoad");
 const campaignsDiv = document.getElementById("campaigns-grid");
 
+const inpTitle = document.getElementById("new-title");
+const inpGoal = document.getElementById("new-goal");
+const inpDuration = document.getElementById("new-duration");
+const btnCreate = document.getElementById("btnCreate");
+
 let provider, signer, cfContract, tokenContract;
 
 // INITIALIZATION
@@ -54,7 +61,7 @@ async function initApp() {
         cfContract = new ethers.Contract(CROWDFUNDING_ADDRESS, CROWDFUNDING_ABI, signer);
         tokenContract = new ethers.Contract(TOKEN_ADDRESS, TOKEN_ABI, signer);
     } else {
-        alert("⚠️ WARNING: Contract addresses not set in app.js!");
+        alert("WARNING: Contract addresses not set in app.js!");
     }
 
     const address = await signer.getAddress();
@@ -66,6 +73,28 @@ async function initApp() {
 }
 
 // CORE LOGIC
+
+btnCreate.onclick = async () => {
+    try {
+        if (!cfContract) return;
+        
+        const title = inpTitle.value;
+        const goal = ethers.parseEther(inpGoal.value);
+        const duration = Number(inpDuration.value);
+
+        setStatus("Creating...", "warning");
+        
+        const tx = await cfContract.createCampaign(title, goal, duration);
+        await tx.wait();
+        
+        setStatus("Campaign Created!", "success");
+        loadCampaigns();
+    } catch (e) {
+        console.error(e);
+        alert("Error creating: " + (e.reason || e.message));
+        setStatus("Create Failed", "error");
+    }
+};
 
 async function refreshBalances() {
     if (!signer) return;
@@ -135,6 +164,7 @@ function renderCampaignCard(id, data) {
 
     const card = document.createElement("div");
     card.className = "camp-card";
+    
     card.innerHTML = `
         <div class="camp-header">
             <span class="camp-id">#${id}</span>
@@ -147,11 +177,20 @@ function renderCampaignCard(id, data) {
             <p>Deadline: ${date}</p>
             <p>👤Creator: ${creator.slice(0,6)}...${creator.slice(-4)}</p>
         </div>
+        
         <div class="camp-actions">
-            <button class="btn-finalize" onclick="finalizeCampaign(${id})" 
-                ${(finalized || !isEnded) ? "disabled" : ""}>
-                Finalize Campaign
-            </button>
+            ${!isEnded && !finalized ? `
+                <div style="margin-top:10px; display:flex; gap:5px;">
+                    <input type="number" id="donate-${id}" placeholder="0.01" step="0.01" style="width:80px; padding:5px;">
+                    <button class="btn-primary" onclick="contribute(${id})">Donate</button>
+                </div>
+            ` : ""}
+            
+            ${(isEnded || finalized) ? `
+                <button class="btn-finalize" onclick="finalizeCampaign(${id})" ${finalized ? "disabled" : ""}>
+                    ${finalized ? "Already Finalized" : "Finalize Campaign"}
+                </button>
+            ` : ""}
         </div>
     `;
     campaignsDiv.appendChild(card);
@@ -197,7 +236,7 @@ function setStatus(msg, type) {
 
 async function checkNetwork() {
     const net = await provider.getNetwork();
-    if (net.chainId === 11155111n) {
+    if (net.chainId === BigInt(EXPECTED_CHAIN_ID)) {
         networkBadge.textContent = "Sepolia";
         networkBadge.className = "badge success";
     } else if (net.chainId === 31337n) {
@@ -209,3 +248,26 @@ async function checkNetwork() {
     }
     networkBadge.classList.remove("hidden");
 }
+
+window.contribute = async (id) => {
+    try {
+        if (!cfContract) return;
+
+        const amountEl = document.getElementById(`donate-${id}`);
+        if (!amountEl || !amountEl.value) return alert("Enter amount!");
+
+        const amount = ethers.parseEther(amountEl.value);
+
+        setStatus(`Donating to #${id}...`, "warning");
+        
+        const tx = await cfContract.contribute(id, { value: amount });
+        await tx.wait();
+
+        setStatus("Donation Successful!", "success");
+        loadCampaigns();
+        refreshBalances();
+    } catch (e) {
+        console.error(e);
+        alert("Error donating: " + (e.reason || e.message));
+    }
+};
