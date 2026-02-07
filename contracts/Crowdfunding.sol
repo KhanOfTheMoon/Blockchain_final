@@ -86,13 +86,15 @@ contract Crowdfunding {
         );
     }
 
+    //Added function to contribute to a campaign
     function contribute(uint256 id) external payable {
         require(id > 0 && id <= campaignCount, "Bad id");
+        require(msg.value > 0, "Zero contribution");
+
         Campaign storage c = campaigns[id];
 
         require(block.timestamp < c.deadline, "Campaign ended");
-        require(!c.finalized, "Finalized");
-        require(msg.value > 0, "Value = 0");
+        require(!c.finalized, "Already finalized");
 
         contributions[id][msg.sender] += msg.value;
         c.raisedWei += msg.value;
@@ -100,9 +102,18 @@ contract Crowdfunding {
         emit Contributed(id, msg.sender, msg.value);
     }
 
-   function finalize(uint256 id) external {
-        // TODO: реализовать на День 4
-        id;
-        revert("TODO");
+    //Added function to finalize a campaign
+    function finalize(uint256 id) external {
+        require(id > 0 && id <= campaignCount, "Bad id");
+
+        Campaign storage c = campaigns[id];
+
+        require(block.timestamp >= c.deadline, "Not ended yet");
+        require(!c.finalized, "Already finalized");
+
+        c.finalized = true;
+
+        emit Finalized(id);
     }
+
 }
