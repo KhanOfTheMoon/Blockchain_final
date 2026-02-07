@@ -86,15 +86,34 @@ contract Crowdfunding {
         );
     }
 
+    //Added function to contribute to a campaign
     function contribute(uint256 id) external payable {
-        // TODO: реализовать на День 3
-        id;
-        revert("TODO");
+        require(id > 0 && id <= campaignCount, "Bad id");
+        require(msg.value > 0, "Zero contribution");
+
+        Campaign storage c = campaigns[id];
+
+        require(block.timestamp < c.deadline, "Campaign ended");
+        require(!c.finalized, "Already finalized");
+
+        contributions[id][msg.sender] += msg.value;
+        c.raisedWei += msg.value;
+
+        emit Contributed(id, msg.sender, msg.value);
     }
 
+    //Added function to finalize a campaign
     function finalize(uint256 id) external {
-        // TODO: реализовать на День 4
-        id;
-        revert("TODO");
+        require(id > 0 && id <= campaignCount, "Bad id");
+
+        Campaign storage c = campaigns[id];
+
+        require(block.timestamp >= c.deadline, "Not ended yet");
+        require(!c.finalized, "Already finalized");
+
+        c.finalized = true;
+
+        emit Finalized(id);
     }
+
 }
