@@ -13,6 +13,7 @@ contract RewardToken is ERC20, Ownable {
     }
 
     function mint(address to, uint256 amount) external {
+        require(msg.sender == minter || msg.sender == owner(), "Not minter");
         _mint(to, amount);
     }
 }
