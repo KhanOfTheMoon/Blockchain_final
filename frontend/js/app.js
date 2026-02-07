@@ -1,273 +1,96 @@
-// config
-const TOKEN_ADDRESS = "0x85a8437944F20e91f2882c4967ca832BF0acfaea";
-const CROWDFUNDING_ADDRESS = "0xf7d8Ec1D49D6f4c43A0199B6497BF50413B2c8A2";
-
-const EXPECTED_CHAIN_ID = 11155111; // Sepolia Testnet
-
-const CROWDFUNDING_ABI = [
-  "function campaignCount() view returns (uint256)",
-  "function getCampaign(uint256 id) view returns (string,address,uint256,uint256,uint256,bool,bool)",
-  "function finalize(uint256 id)",
-  "function createCampaign(string title, uint256 goalWei, uint256 durationSeconds) returns (uint256)",
-  "function contribute(uint256 id) payable"
-];
-
-const TOKEN_ABI = [
-  "function balanceOf(address) view returns (uint256)",
-  "function decimals() view returns (uint8)",
-  "function symbol() view returns (string)"
-];
-
-// vars
-const connectBtn = document.getElementById("connect-btn");
-const addressSpan = document.getElementById("user-address");
-const networkBadge = document.getElementById("network-badge");
-const statusBadge = document.getElementById("status-badge");
-
-const dashboardSection = document.getElementById("dashboard-section");
-const campaignsSection = document.getElementById("campaigns-section");
-const placeholder = document.getElementById("connect-placeholder");
-
-const ethBalEl = document.getElementById("ethBal");
-const tokBalEl = document.getElementById("tokBal");
-const btnRefresh = document.getElementById("btnRefresh");
-const btnLoad = document.getElementById("btnLoad");
-const campaignsDiv = document.getElementById("campaigns-grid");
-
-const inpTitle = document.getElementById("new-title");
-const inpGoal = document.getElementById("new-goal");
-const inpDuration = document.getElementById("new-duration");
-const btnCreate = document.getElementById("btnCreate");
-
-let provider, signer, cfContract, tokenContract;
-
-// iniциализация
-connectBtn.onclick = async () => {
-    if (!window.ethereum) return alert("MetaMask not found!");
-    try {
-        await window.ethereum.request({ method: "eth_requestAccounts" });
-        await initApp();
-    } catch (e) {
-        console.error(e);
-        setStatus("Connection Failed", "error");
-    }
+const AppState = {
+    provider: null,
+    signer: null,
+    cfContract: null,
+    tokenContract: null,
+    address: null
 };
 
-async function initApp() {
-    provider = new ethers.BrowserProvider(window.ethereum);
-    signer = await provider.getSigner();
-    
-    if (CROWDFUNDING_ADDRESS && TOKEN_ADDRESS) {
-        cfContract = new ethers.Contract(CROWDFUNDING_ADDRESS, CROWDFUNDING_ABI, signer);
-        tokenContract = new ethers.Contract(TOKEN_ADDRESS, TOKEN_ABI, signer);
-    } else {
-        alert("WARNING: Contract addresses not set in app.js!");
-    }
+const App = {
+    init: () => {
+        DOM.connectBtn.onclick = App.connectWallet;
+        DOM.inputs.createBtn.onclick = App.createCampaign;
+        document.getElementById("btnRefresh").onclick = App.refreshBalances;
+        document.getElementById("btnLoad").onclick = App.loadCampaigns;
+    },
 
-    const address = await signer.getAddress();
-    
-    updateUI(address);
-    checkNetwork();
-    
-    refreshBalances();
-}
-
-// core logic
-
-btnCreate.onclick = async () => {
-    try {
-        if (!cfContract) return;
+    connectWallet: async () => {
+        if (!window.ethereum) return alert("Install MetaMask");
+        AppState.provider = new ethers.BrowserProvider(window.ethereum);
+        AppState.signer = await AppState.provider.getSigner();
+        AppState.address = await AppState.signer.getAddress();
         
-        const title = inpTitle.value;
-        const goal = ethers.parseEther(inpGoal.value);
-        const duration = Number(inpDuration.value);
+        AppState.cfContract = new ethers.Contract(CONFIG.CROWDFUNDING_ADDRESS, ABIS.CROWDFUNDING, AppState.signer);
+        AppState.tokenContract = new ethers.Contract(CONFIG.TOKEN_ADDRESS, ABIS.TOKEN, AppState.signer);
 
-        setStatus("Creating...", "warning");
-        
-        const tx = await cfContract.createCampaign(title, goal, duration);
-        await tx.wait();
-        
-        setStatus("Campaign Created!", "success");
-        loadCampaigns();
-    } catch (e) {
-        console.error(e);
-        alert("Error creating: " + (e.reason || e.message));
-        setStatus("Create Failed", "error");
-    }
-};
+        UI.updateOnConnect(AppState.address);
+        App.checkNetwork();
+        App.loadCampaigns();
+        App.refreshBalances();
+    },
 
-async function refreshBalances() {
-    if (!signer) return;
-    try {
-        const address = await signer.getAddress();
-        
-        const eth = await provider.getBalance(address);
-        ethBalEl.textContent = Number(ethers.formatEther(eth)).toFixed(4) + " ETH";
+    checkNetwork: async () => {
+        const net = await AppState.provider.getNetwork();
+        if (net.chainId === CONFIG.CHAIN_ID) UI.setNetwork("Sepolia", "success");
+        else UI.setNetwork("Wrong Network", "error");
+    },
 
-        if (tokenContract) {
-            const [decimals, symbol, balance] = await Promise.all([
-                tokenContract.decimals(),
-                tokenContract.symbol(),
-                tokenContract.balanceOf(address)
-            ]);
-            tokBalEl.textContent = `${ethers.formatUnits(balance, decimals)} ${symbol}`;
+    createCampaign: async () => {
+        try {
+            UI.setStatus("Creating...", "warning");
+            const tx = await AppState.cfContract.createCampaign(
+                DOM.inputs.title.value,
+                ethers.parseEther(DOM.inputs.goal.value),
+                DOM.inputs.duration.value
+            );
+            await tx.wait();
+            UI.setStatus("Success!", "success");
+            App.loadCampaigns();
+        } catch (e) { UI.setStatus("Error", "error"); console.error(e); }
+    },
+
+    handleDonate: async (id) => {
+        const val = document.getElementById(`donate-${id}`).value;
+        if (!val) return alert("Value?");
+        try {
+            UI.setStatus("Donating...", "warning");
+            const tx = await AppState.cfContract.contribute(id, { value: ethers.parseEther(val) });
+            await tx.wait();
+            UI.setStatus("Donated!", "success");
+            App.loadCampaigns();
+            App.refreshBalances();
+        } catch (e) { UI.setStatus("Error", "error"); console.error(e); }
+    },
+
+    handleFinalize: async (id) => {
+        try {
+            UI.setStatus("Finalizing...", "warning");
+            const tx = await AppState.cfContract.finalize(id);
+            await tx.wait();
+            UI.setStatus("Finalized!", "success");
+            App.loadCampaigns();
+        } catch (e) { UI.setStatus("Error", "error"); console.error(e); }
+    },
+
+    loadCampaigns: async () => {
+        UI.setStatus("Loading...", "warning");
+        const count = await AppState.cfContract.campaignCount();
+        let html = "";
+        for (let i = count; i >= 1; i--) {
+            const data = await AppState.cfContract.getCampaign(i);
+            html += UI.generateCardHTML(i, data);
         }
-    } catch (e) {
-        console.error("Balance Error:", e);
-        setStatus("Error loading balances", "error");
-    }
-}
+        UI.renderCampaigns(html || "<p>No campaigns</p>");
+        UI.setStatus("Loaded", "success");
+    },
 
-async function loadCampaigns() {
-    if (!cfContract) return;
-    try {
-        setStatus("Loading...", "warning");
-        const count = Number(await cfContract.campaignCount());
-        campaignsDiv.innerHTML = "";
-
-        if (count === 0) {
-            campaignsDiv.innerHTML = "<p>No campaigns found.</p>";
-            return;
-        }
-
-        for (let i = 1; i <= count; i++) {
-            const c = await cfContract.getCampaign(i);
-            renderCampaignCard(i, c);
-        }
-        setStatus("Campaigns Loaded", "success");
-
-    } catch (e) {
-        console.error("Load Error:", e);
-        setStatus("Failed to load campaigns", "error");
-    }
-}
-
-function renderCampaignCard(id, data) {
-    const [title, creator, goalWei, deadline, raisedWei, finalized, successful] = data;
-    
-    const goal = ethers.formatEther(goalWei);
-    const raised = ethers.formatEther(raisedWei);
-    const date = new Date(Number(deadline) * 1000).toLocaleString();
-    const now = Math.floor(Date.now() / 1000);
-    const isEnded = now >= Number(deadline);
-
-    let statusText = "ACTIVE";
-    let statusClass = "status-active";
-    
-    if (finalized) {
-        statusText = successful ? "SUCCESS" : "FAILED";
-        statusClass = successful ? "status-success" : "status-ended";
-    } else if (isEnded) {
-        statusText = "ENDED (Not Finalized)";
-        statusClass = "status-ended";
-    }
-
-    const card = document.createElement("div");
-    card.className = "camp-card";
-    
-    card.innerHTML = `
-        <div class="camp-header">
-            <span class="camp-id">#${id}</span>
-            <span class="camp-status ${statusClass}">${statusText}</span>
-        </div>
-        <h3>${title}</h3>
-        <div class="camp-details">
-            <p>Goal: <b>${goal} ETH</b></p>
-            <p>Raised: <b>${raised} ETH</b></p>
-            <p>Deadline: ${date}</p>
-            <p>Creator: ${creator.slice(0,6)}...${creator.slice(-4)}</p>
-        </div>
-        
-        <div class="camp-actions">
-            ${!isEnded && !finalized ? `
-                <div style="margin-top:10px; display:flex; gap:5px;">
-                    <input type="number" id="donate-${id}" placeholder="0.01" step="0.01" style="width:80px; padding:5px;">
-                    <button class="btn-primary" onclick="contribute(${id})">Donate</button>
-                </div>
-            ` : ""}
-            
-            ${(isEnded || finalized) ? `
-                <button class="btn-finalize" onclick="finalizeCampaign(${id})" ${finalized ? "disabled" : ""}>
-                    ${finalized ? "Already Finalized" : "Finalize Campaign"}
-                </button>
-            ` : ""}
-        </div>
-    `;
-    campaignsDiv.appendChild(card);
-}
-
-window.finalizeCampaign = async (id) => {
-    if (!cfContract) return;
-    try {
-        const tx = await cfContract.finalize(id);
-        setStatus("Finalizing...", "warning");
-        await tx.wait();
-        
-        setStatus("Finalized!", "success");
-        loadCampaigns();
-        refreshBalances();
-    } catch (e) {
-        console.error(e);
-        alert("Error finalizing: " + (e.reason || e.message));
+    refreshBalances: async () => {
+        if (!AppState.address) return;
+        const eth = await AppState.provider.getBalance(AppState.address);
+        DOM.ethBal.textContent = Number(ethers.formatEther(eth)).toFixed(4) + " ETH";
+        const bal = await AppState.tokenContract.balanceOf(AppState.address);
+        DOM.tokBal.textContent = ethers.formatUnits(bal, 18) + " RWD";
     }
 };
 
-// listene r
-btnRefresh.onclick = refreshBalances;
-btnLoad.onclick = loadCampaigns;
-
-// ui help
-function updateUI(address) {
-    connectBtn.classList.add("hidden");
-    placeholder.classList.add("hidden");
-    
-    addressSpan.classList.remove("hidden");
-    addressSpan.textContent = `${address.slice(0, 6)}...${address.slice(-4)}`;
-    
-    dashboardSection.classList.remove("hidden");
-    campaignsSection.classList.remove("hidden");
-}
-
-function setStatus(msg, type) {
-    statusBadge.textContent = msg;
-    statusBadge.className = `badge ${type}`;
-    statusBadge.classList.remove("hidden");
-}
-
-async function checkNetwork() {
-    const net = await provider.getNetwork();
-    if (net.chainId === BigInt(EXPECTED_CHAIN_ID)) {
-        networkBadge.textContent = "Sepolia";
-        networkBadge.className = "badge success";
-    } else if (net.chainId === 31337n) {
-        networkBadge.textContent = "Localhost";
-        networkBadge.className = "badge warning";
-    } else {
-        networkBadge.textContent = "Wrong Network";
-        networkBadge.className = "badge error";
-    }
-    networkBadge.classList.remove("hidden");
-}
-
-window.contribute = async (id) => {
-    try {
-        if (!cfContract) return;
-
-        const amountEl = document.getElementById(`donate-${id}`);
-        if (!amountEl || !amountEl.value) return alert("Enter amount!");
-
-        const amount = ethers.parseEther(amountEl.value);
-
-        setStatus(`Donating to #${id}...`, "warning");
-        
-        const tx = await cfContract.contribute(id, { value: amount });
-        await tx.wait();
-
-        setStatus("Donation Successful!", "success");
-        loadCampaigns();
-        refreshBalances();
-    } catch (e) {
-        console.error(e);
-        alert("Error donating: " + (e.reason || e.message));
-    }
-};
+document.addEventListener("DOMContentLoaded", App.init);
