@@ -1,6 +1,17 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
+import "./RewardToken.sol";
+
+
+RewardToken public rewardToken;
+
+constructor(address rewardTokenAddress) {
+    rewardToken = RewardToken(rewardTokenAddress);
+}
+
+
+
 contract Crowdfunding {
     struct Campaign {
         string title;
@@ -99,8 +110,11 @@ contract Crowdfunding {
         contributions[id][msg.sender] += msg.value;
         c.raisedWei += msg.value;
 
+        rewardToken.mint(msg.sender, msg.value);
+
         emit Contributed(id, msg.sender, msg.value);
     }
+
 
     //Added function to finalize a campaign
     function finalize(uint256 id) external {
