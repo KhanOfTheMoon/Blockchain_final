@@ -13,22 +13,54 @@
         <div class="logo">CrowdStarter</div>
         <div class="wallet-container">
             <div id="network-badge" class="badge hidden">Checking...</div>
-            <button id="connect-btn" class="btn-primary">
-                Connect MetaMask
-            </button>
+            <div id="status-badge" class="badge hidden">Wait</div>
+            
+            <button id="connect-btn" class="btn-primary">Connect MetaMask</button>
             <span id="user-address" class="address hidden"></span>
         </div>
     </header>
 
     <main>
-        <h1>Welcome to Decentralized Funding</h1>
-        <p class="subtitle">Secure, transparent, blockchain-based.</p>
-        
-        <div class="content-placeholder">
-            <p>Campaigns will load here...</p>
+        <section id="dashboard-section" class="hidden">
+            <div class="stats-container">
+                <div class="stat-card">
+                    <h3>ETH Balance</h3>
+                    <p id="ethBal">0.00 ETH</p>
+                </div>
+                <div class="stat-card">
+                    <h3>Reward Tokens</h3>
+                    <p id="tokBal">0.00 RWD</p>
+                </div>
+                <button id="btnRefresh" class="btn-secondary">Refresh</button>
+            </div>
+
+            <div class="create-container">
+                <h2>Launch a Campaign</h2>
+                <div class="form-row">
+                    <input type="text" id="new-title" placeholder="Campaign Title">
+                    <input type="number" id="new-goal" placeholder="Goal (ETH)">
+                    <input type="number" id="new-duration" placeholder="Duration (seconds)">
+                    <button id="btnCreate" class="btn-primary">Create Campaign</button>
+                </div>
+            </div>
+        </section>
+
+        <section id="campaigns-section" class="hidden">
+            <div class="section-header">
+                <h2>Active Campaigns</h2>
+                <button id="btnLoad" class="btn-action">📂 Load Campaigns</button>
+            </div>
+            
+            <div id="campaigns-grid" class="grid-container">
+                <p class="placeholder-text">Click "Load Campaigns" to see projects...</p>
+            </div>
+        </section>
+
+        <div id="connect-placeholder" class="content-placeholder">
+            <p>Connect your wallet to start.</p>
         </div>
     </main>
 
-    <script src="app.js"></script>
+    <script src="js/app.js"></script>
 </body>
 </html>
