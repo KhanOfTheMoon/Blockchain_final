@@ -1,52 +1,57 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
-import "./RewardToken.sol";
+import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
+import "@openzeppelin/contracts/access/Ownable.sol";
 
-contract Crowdfunding {
+interface IRewardToken {
+    function mint(address to, uint256 amount) external;
+}
+
+contract Crowdfunding is ReentrancyGuard, Ownable {
     struct Campaign {
         string title;
         address payable creator;
         uint256 goalWei;
-        uint256 deadline;
+        uint256 deadline;    
         uint256 raisedWei;
         bool finalized;
+        bool successful;
     }
 
     uint256 public campaignCount;
     mapping(uint256 => Campaign) public campaigns;
-
-    // campaignId => user => contributedWei
     mapping(uint256 => mapping(address => uint256)) public contributions;
 
-    event CampaignCreated(
-        uint256 indexed id,
-        address indexed creator,
-        string title,
-        uint256 goalWei,
-        uint256 deadline
-    );
-    event Contributed(
-        uint256 indexed id,
-        address indexed contributor,
-        uint256 amountWei
-    );
-    event Finalized(uint256 indexed id);
+    IRewardToken public rewardToken;
 
-    RewardToken public rewardToken;
+    // 100 tokens per 1 ETH (18 decimals)
+    uint256 public rewardPerEth = 100e18;
 
-    constructor(address rewardTokenAddress) {
-        rewardToken = RewardToken(rewardTokenAddress);
+    event CampaignCreated(uint256 indexed id, address indexed creator, string title, uint256 goalWei, uint256 deadline);
+    event Contributed(uint256 indexed id, address indexed contributor, uint256 amountWei, uint256 rewardMinted);
+    event Finalized(uint256 indexed id, bool successful);
+
+    constructor(address rewardTokenAddress) Ownable(msg.sender) {
+        rewardToken = IRewardToken(rewardTokenAddress);
     }
 
-    function createCampaign(
-        string calldata title,
-        uint256 goalWei,
-        uint256 durationSeconds
-    ) external returns (uint256 id) {
+    function setRewardToken(address rewardTokenAddress) external onlyOwner {
+        rewardToken = IRewardToken(rewardTokenAddress);
+    }
+
+    function setRewardPerEth(uint256 newRewardPerEth) external onlyOwner {
+        require(newRewardPerEth > 0, "Rate=0");
+        rewardPerEth = newRewardPerEth;
+    }
+
+    function createCampaign(string calldata title, uint256 goalWei, uint256 durationSeconds)
+        external
+        returns (uint256 id)
+    {
         require(bytes(title).length > 0, "Empty title");
-        require(goalWei > 0, "Goal = 0");
-        require(durationSeconds > 0, "Duration = 0");
+        require(goalWei > 0, "Goal=0");
+        require(durationSeconds > 0, "Duration=0");
 
         id = ++campaignCount;
 
@@ -56,21 +61,47 @@ contract Crowdfunding {
             goalWei: goalWei,
             deadline: block.timestamp + durationSeconds,
             raisedWei: 0,
-            finalized: false
+            finalized: false,
+            successful: false
         });
 
-        emit CampaignCreated(
-            id,
-            msg.sender,
-            title,
-            goalWei,
-            campaigns[id].deadline
-        );
+        emit CampaignCreated(id, msg.sender, title, goalWei, campaigns[id].deadline);
     }
 
-    function getCampaign(
-        uint256 id
-    )
+    function contribute(uint256 id) external payable nonReentrant {
+        require(id > 0 && id <= campaignCount, "Bad id");
+        Campaign storage c = campaigns[id];
+
+        require(block.timestamp < c.deadline, "Ended");
+        require(!c.finalized, "Finalized");
+        require(msg.value > 0, "Value=0");
+
+        contributions[id][msg.sender] += msg.value;
+        c.raisedWei += msg.value;
+
+        uint256 rewardAmount = 0;
+        if (address(rewardToken) != address(0)) {
+            rewardAmount = (msg.value * rewardPerEth) / 1 ether;
+            rewardToken.mint(msg.sender, rewardAmount);
+        }
+
+        emit Contributed(id, msg.sender, msg.value, rewardAmount);
+    }
+
+    function finalize(uint256 id) external {
+        require(id > 0 && id <= campaignCount, "Bad id");
+        Campaign storage c = campaigns[id];
+
+        require(!c.finalized, "Already finalized");
+        require(block.timestamp >= c.deadline, "Too early");
+
+        c.finalized = true;
+        c.successful = (c.raisedWei >= c.goalWei);
+
+        emit Finalized(id, c.successful);
+    }
+
+    function getCampaign(uint256 id)
         external
         view
         returns (
@@ -79,52 +110,12 @@ contract Crowdfunding {
             uint256 goalWei,
             uint256 deadline,
             uint256 raisedWei,
-            bool finalized
+            bool finalized,
+            bool successful
         )
     {
         require(id > 0 && id <= campaignCount, "Bad id");
         Campaign storage c = campaigns[id];
-        return (
-            c.title,
-            c.creator,
-            c.goalWei,
-            c.deadline,
-            c.raisedWei,
-            c.finalized
-        );
+        return (c.title, c.creator, c.goalWei, c.deadline, c.raisedWei, c.finalized, c.successful);
     }
-
-    //Added function to contribute to a campaign
-function contribute(uint256 id) external payable {
-    require(id > 0 && id <= campaignCount, "Bad id");
-    require(msg.value > 0, "Zero contribution");
-
-    Campaign storage c = campaigns[id];
-
-    require(block.timestamp < c.deadline, "Campaign ended");
-    require(!c.finalized, "Already finalized");
-
-    contributions[id][msg.sender] += msg.value;
-    c.raisedWei += msg.value;
-
-    rewardToken.mint(msg.sender, msg.value);
-
-    emit Contributed(id, msg.sender, msg.value);
-}
-
-
-    //Added function to finalize a campaign
-    function finalize(uint256 id) external {
-        require(id > 0 && id <= campaignCount, "Bad id");
-
-        Campaign storage c = campaigns[id];
-
-        require(block.timestamp >= c.deadline, "Not ended yet");
-        require(!c.finalized, "Already finalized");
-
-        c.finalized = true;
-
-        emit Finalized(id);
-    }
-
 }
