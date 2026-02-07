@@ -21,11 +21,33 @@
     </header>
 
     <main>
-        <h1>Decentralized Crowdfunding</h1>
-        <p class="subtitle">Secure, transparent, blockchain-based fundraising.</p>
-        
-        <div class="content-placeholder">
-            <p>Connect your wallet to view active campaigns.</p>
+        <section id="dashboard-section" class="hidden">
+            <div class="stats-container">
+                <div class="stat-card">
+                    <h3>ETH Balance</h3>
+                    <p id="ethBal">0.00 ETH</p>
+                </div>
+                <div class="stat-card">
+                    <h3>Reward Tokens</h3>
+                    <p id="tokBal">0.00 RWD</p>
+                </div>
+                <button id="btnRefresh" class="btn-secondary">🔄 Refresh</button>
+            </div>
+        </section>
+
+        <section id="campaigns-section" class="hidden">
+            <div class="section-header">
+                <h2>Active Campaigns</h2>
+                <button id="btnLoad" class="btn-action">📂 Load Campaigns</button>
+            </div>
+            
+            <div id="campaigns-grid" class="grid-container">
+                <p class="placeholder-text">Click "Load Campaigns" to see projects...</p>
+            </div>
+        </section>
+
+        <div id="connect-placeholder" class="content-placeholder">
+            <p>Connect your wallet to view dashboard.</p>
         </div>
     </main>
 
