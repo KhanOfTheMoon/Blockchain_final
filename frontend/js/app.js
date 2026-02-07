@@ -1,6 +1,6 @@
-// CONFIGURATION
-const TOKEN_ADDRESS = "0x5FbDB2315678afecb367f032d93F642f64180aa3";
-const CROWDFUNDING_ADDRESS = "0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512";
+// config
+const TOKEN_ADDRESS = "0x85a8437944F20e91f2882c4967ca832BF0acfaea";
+const CROWDFUNDING_ADDRESS = "0xf7d8Ec1D49D6f4c43A0199B6497BF50413B2c8A2";
 
 const EXPECTED_CHAIN_ID = 11155111; // Sepolia Testnet
 
@@ -18,7 +18,7 @@ const TOKEN_ABI = [
   "function symbol() view returns (string)"
 ];
 
-// VARIABLES
+// vars
 const connectBtn = document.getElementById("connect-btn");
 const addressSpan = document.getElementById("user-address");
 const networkBadge = document.getElementById("network-badge");
@@ -41,7 +41,7 @@ const btnCreate = document.getElementById("btnCreate");
 
 let provider, signer, cfContract, tokenContract;
 
-// INITIALIZATION
+// iniциализация
 connectBtn.onclick = async () => {
     if (!window.ethereum) return alert("MetaMask not found!");
     try {
@@ -72,7 +72,7 @@ async function initApp() {
     refreshBalances();
 }
 
-// CORE LOGIC
+// core logic
 
 btnCreate.onclick = async () => {
     try {
@@ -175,7 +175,7 @@ function renderCampaignCard(id, data) {
             <p>Goal: <b>${goal} ETH</b></p>
             <p>Raised: <b>${raised} ETH</b></p>
             <p>Deadline: ${date}</p>
-            <p>👤Creator: ${creator.slice(0,6)}...${creator.slice(-4)}</p>
+            <p>Creator: ${creator.slice(0,6)}...${creator.slice(-4)}</p>
         </div>
         
         <div class="camp-actions">
@@ -212,11 +212,11 @@ window.finalizeCampaign = async (id) => {
     }
 };
 
-// LISTENERS 
+// listene r
 btnRefresh.onclick = refreshBalances;
 btnLoad.onclick = loadCampaigns;
 
-// UI HELPERS
+// ui help
 function updateUI(address) {
     connectBtn.classList.add("hidden");
     placeholder.classList.add("hidden");
