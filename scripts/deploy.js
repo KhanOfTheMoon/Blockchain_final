@@ -1,4 +1,5 @@
-const { ethers } = require("hardhat");
+import hre from "hardhat";
+const { ethers } = hre;
 
 async function main() {
   // 1) Deploy RewardToken
